@@ -32,6 +32,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/*/avatar").permitAll()
                 .requestMatchers("/api/groups/*/avatar").permitAll()
                 .requestMatchers("/api/device/**").permitAll()
+                // WebSocket — auth handled by STOMP channel interceptor
+                .requestMatchers("/ws/**").permitAll()
                 // Admin endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // Everything else requires authentication
