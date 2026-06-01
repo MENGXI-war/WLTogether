@@ -1,9 +1,6 @@
 <template>
   <div class="group-header">
     <div class="header-left">
-      <el-button text @click="$emit('back')">
-        <el-icon><ArrowLeft /></el-icon>
-      </el-button>
       <el-avatar :size="40" :src="group.avatarUrl">
         {{ group.name?.charAt(0) || 'G' }}
       </el-avatar>
@@ -20,7 +17,7 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Search, Setting } from '@element-plus/icons-vue'
+import { Search, Setting } from '@element-plus/icons-vue'
 
 defineProps({
   group: {
@@ -33,7 +30,7 @@ defineProps({
   }
 })
 
-defineEmits(['back', 'search', 'settings'])
+defineEmits(['search', 'settings'])
 </script>
 
 <style scoped>

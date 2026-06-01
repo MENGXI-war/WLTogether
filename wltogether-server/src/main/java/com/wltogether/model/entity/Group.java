@@ -29,6 +29,17 @@ public class Group {
     @Column(length = 500)
     private String announcement;
 
+    @Column(name = "join_mode", nullable = false, length = 20)
+    @Builder.Default
+    private String joinMode = "INVITE_ONLY";
+
+    @Column(length = 500)
+    private String tags;
+
+    @Column(name = "storage_used_bytes", nullable = false)
+    @Builder.Default
+    private Long storageUsedBytes = 0L;
+
     @Column(name = "last_message_at")
     private Instant lastMessageAt;
 

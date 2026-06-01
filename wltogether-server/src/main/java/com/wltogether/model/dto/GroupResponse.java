@@ -15,6 +15,8 @@ public class GroupResponse {
     private String description;
     private String avatarUrl;
     private String announcement;
+    private String joinMode;
+    private String tags;
     private Instant lastMessageAt;
     private long memberCount;
     private Instant createdAt;

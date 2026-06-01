@@ -23,7 +23,9 @@ export const useGroupsStore = defineStore('groups', () => {
   async function fetchGroup(id) {
     loading.value = true
     try {
-      currentGroup.value = await groupsApi.get(id)
+      const group = await groupsApi.get(id)
+      currentGroup.value = group
+      return group
     } finally {
       loading.value = false
     }
@@ -68,6 +70,47 @@ export const useGroupsStore = defineStore('groups', () => {
     members.value = members.value.filter(m => m.userId != userId)
   }
 
+  async function leaveGroup(groupId) {
+    await groupsApi.leave(groupId)
+    groups.value = groups.value.filter(g => g.id != groupId)
+    if (currentGroup.value?.id == groupId) {
+      currentGroup.value = null
+    }
+  }
+
+  async function changeMemberRole(groupId, userId, role) {
+    await groupsApi.changeMemberRole(groupId, userId, role)
+    const m = members.value.find(m => m.userId == userId)
+    if (m) m.role = role
+  }
+
+  async function transferOwner(groupId, newOwnerId) {
+    await groupsApi.transferOwner(groupId, newOwnerId)
+  }
+
+  async function muteMember(groupId, userId, duration) {
+    await groupsApi.muteMember(groupId, userId, duration)
+  }
+
+  async function updateNickname(groupId, nicknameInGroup) {
+    await groupsApi.updateNickname(groupId, nicknameInGroup)
+  }
+
+  async function uploadAvatar(groupId, file) {
+    const res = await groupsApi.uploadAvatar(groupId, file)
+    if (currentGroup.value?.id == groupId) {
+      currentGroup.value.avatarUrl = res.data || res
+    }
+    return res
+  }
+
+  async function deleteAvatar(groupId) {
+    await groupsApi.deleteAvatar(groupId)
+    if (currentGroup.value?.id == groupId) {
+      currentGroup.value.avatarUrl = null
+    }
+  }
+
   async function fetchSessions(groupId) {
     sessions.value = await sessionsApi.list(groupId)
   }
@@ -98,6 +141,13 @@ export const useGroupsStore = defineStore('groups', () => {
     fetchMembers,
     inviteMember,
     removeMember,
+    leaveGroup,
+    changeMemberRole,
+    transferOwner,
+    muteMember,
+    updateNickname,
+    uploadAvatar,
+    deleteAvatar,
     fetchSessions,
     createSession,
     clearCurrent

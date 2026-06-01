@@ -17,6 +17,7 @@ public class ChatMessageResponse {
     private String senderAvatarUrl;
     private String content;
     private String messageType;
+    private String imageThumbnailUrl;
     private Long replyToId;
     private Long sessionId;
     private Boolean isPinned;

@@ -41,6 +41,9 @@ public class User {
     @Builder.Default
     private Boolean emailVerified = false;
 
+    @Column(unique = true, length = 8)
+    private String uid;
+
     @Column(name = "public_key", columnDefinition = "TEXT")
     private String publicKey;
 

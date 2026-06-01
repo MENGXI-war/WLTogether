@@ -10,6 +10,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class MemberResponse {
     private Long userId;
+    private String uid;
     private String username;
     private String nickname;
     private String nicknameInGroup;

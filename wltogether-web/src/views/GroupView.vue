@@ -4,7 +4,6 @@
     <GroupHeader
       :group="group"
       :members="members"
-      @back="router.push('/groups')"
       @settings="showSettings = true"
     />
 

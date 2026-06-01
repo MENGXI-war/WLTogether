@@ -18,6 +18,7 @@ public class LoginResponse {
     @AllArgsConstructor
     public static class UserInfo {
         private Long id;
+        private String uid;
         private String email;
         private String username;
         private String nickname;

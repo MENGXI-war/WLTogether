@@ -1,12 +1,10 @@
 <template>
   <div class="playlist-page">
-    <header class="page-header">
-      <el-button text :icon="ArrowLeft" @click="router.back()">返回</el-button>
-      <h2>歌单管理</h2>
-      <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">新建歌单</el-button>
-    </header>
-
     <div class="playlist-container">
+      <div class="playlist-toolbar">
+        <h2>歌单管理</h2>
+        <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">新建歌单</el-button>
+      </div>
       <el-empty v-if="playlists.length === 0" description="还没有歌单" />
 
       <el-card v-for="pl in playlists" :key="pl.id" class="playlist-card" shadow="hover">
@@ -46,7 +44,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -77,19 +75,16 @@ function onDelete(id) {
   background: var(--color-bg);
 }
 
-.page-header {
+.playlist-toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 0 24px;
-  height: 60px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 
-.page-header h2 {
-  flex: 1;
+.playlist-toolbar h2 {
   font-size: 18px;
+  font-weight: 600;
 }
 
 .playlist-container {

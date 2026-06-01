@@ -1,11 +1,7 @@
 <template>
   <div class="package-page">
-    <header class="page-header">
-      <el-button text :icon="ArrowLeft" @click="router.back()">返回</el-button>
-      <h2>导入离线包</h2>
-    </header>
-
     <div class="package-container">
+      <h2 class="page-title">导入离线包</h2>
       <el-steps :active="activeStep" align-center style="margin-bottom: 32px">
         <el-step title="选择文件" />
         <el-step title="安全校验" />
@@ -60,7 +56,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, UploadFilled, CircleCheckFilled, CircleCloseFilled, Loading } from '@element-plus/icons-vue'
+import { UploadFilled, CircleCheckFilled, CircleCloseFilled, Loading } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -103,17 +99,11 @@ function formatSize(bytes) {
   background: var(--color-bg);
 }
 
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 24px;
-  height: 60px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
 }
-
-.page-header h2 { font-size: 18px; }
 
 .package-container {
   max-width: 700px;

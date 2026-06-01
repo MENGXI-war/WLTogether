@@ -38,6 +38,11 @@ Thumbs.db
 *.log
 logs/
 
+# Project docs (not for distribution)
+CLAUDE.md
+架构设计方案.md
+编码执行计划.md
+
 # Node (Web frontend)
 node_modules/
 dist/
@@ -47,3 +52,4 @@ web-dist/
 *.apk
 *.aab
 local.properties
+.vite/

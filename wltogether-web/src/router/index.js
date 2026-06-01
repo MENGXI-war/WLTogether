@@ -17,9 +17,8 @@ const routes = [
   {
     path: '/groups/:id',
     name: 'Group',
-    component: () => import('@/views/GroupView.vue'),
-    meta: { requiresAuth: true },
-    props: true
+    component: () => import('@/views/GroupListView.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/sessions/video/:id',

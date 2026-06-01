@@ -1,11 +1,5 @@
 <template>
   <div class="chat-panel">
-    <!-- Header -->
-    <div class="chat-header">
-      <span class="chat-title">聊天</span>
-      <span v-if="typingText" class="typing-indicator">{{ typingText }}</span>
-    </div>
-
     <!-- Message list -->
     <div class="chat-messages" ref="messagesEl" @scroll="onScroll">
       <div v-if="hasMore" class="load-more">
@@ -83,14 +77,6 @@ const messages = ref([])
 const typingUsers = ref([])
 let typingTimer = null
 let scrollToBottomNext = true
-
-const typingText = computed(() => {
-  const names = typingUsers.value.map(u => u.nickname || `用户${u.userId}`)
-  if (names.length === 0) return ''
-  if (names.length === 1) return `${names[0]} 正在输入...`
-  if (names.length === 2) return `${names[0]} 和 ${names[1]} 正在输入...`
-  return `${names[0]} 等${names.length}人正在输入...`
-})
 
 // Initialize: load messages and subscribe to WebSocket
 async function init() {
@@ -186,27 +172,6 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   background: var(--color-chat-bg);
-}
-
-.chat-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e4e7ed;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-}
-
-.chat-title {
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.typing-indicator {
-  font-size: 12px;
-  color: #909399;
-  font-style: italic;
 }
 
 .chat-messages {

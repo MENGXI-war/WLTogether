@@ -13,7 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
+import java.security.SecureRandom;
 
 @Slf4j
 @Service
@@ -46,6 +46,7 @@ public class AuthService {
                 .role("USER")
                 .status("PENDING")
                 .emailVerified(false)
+                .uid(generateUid())
                 .build();
         userRepository.save(user);
 
@@ -189,6 +190,7 @@ public class AuthService {
                 .expiresIn(7200)
                 .user(LoginResponse.UserInfo.builder()
                         .id(user.getId())
+                        .uid(user.getUid())
                         .email(user.getEmail())
                         .username(user.getUsername())
                         .nickname(user.getNickname())
@@ -197,5 +199,21 @@ public class AuthService {
                         .publicKey(user.getPublicKey())
                         .build())
                 .build();
+    }
+
+    /**
+     * Generate a unique 8-digit UID.
+     * Uses SecureRandom for unpredictability, retries on collision.
+     */
+    private String generateUid() {
+        SecureRandom random = new SecureRandom();
+        for (int i = 0; i < 10; i++) {
+            int num = 10000000 + random.nextInt(90000000);
+            String uid = String.valueOf(num);
+            if (!userRepository.existsByUid(uid)) {
+                return uid;
+            }
+        }
+        throw new RuntimeException("Failed to generate unique UID after 10 attempts");
     }
 }

@@ -1,10 +1,5 @@
 <template>
   <div class="settings-page">
-    <header class="page-header">
-      <el-button text :icon="ArrowLeft" @click="router.back()">返回</el-button>
-      <h2>设置</h2>
-    </header>
-
     <div class="settings-container">
       <el-tabs tab-position="left" class="settings-tabs">
         <!-- Profile -->
@@ -120,7 +115,6 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import usersApi from '@/api/users'
 
@@ -185,18 +179,6 @@ function onSaveP2p() {
   min-height: 100vh;
   background: var(--color-bg);
 }
-
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 24px;
-  height: 60px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.page-header h2 { font-size: 18px; }
 
 .settings-container {
   max-width: 800px;
