@@ -1,0 +1,49 @@
+# Build
+build/
+target/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+bin/
+out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+!.vscode/settings.json
+.project
+.classpath
+.settings/
+
+# Java
+*.class
+*.jar
+*.war
+hs_err_pid*
+
+# Data files
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+*.log
+logs/
+
+# Node (Web frontend)
+node_modules/
+dist/
+web-dist/
+
+# Android
+*.apk
+*.aab
+local.properties

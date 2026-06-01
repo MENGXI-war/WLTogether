@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:${app.data-dir:./data}/wl.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+
+  flyway:
+    locations: classpath:db/migration/sqlite
+
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect

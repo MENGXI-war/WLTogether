@@ -1,0 +1,90 @@
+server:
+  port: 8080
+  address: 127.0.0.1
+
+spring:
+  profiles:
+    active: sqlite
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+
+  mail:
+    host: smtp.163.com
+    port: 465
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
+# JWT
+app:
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET:WLTogether-Access-Secret-AtLeast256Bits-ChangeInProduction!}
+    refresh-secret: ${JWT_REFRESH_SECRET:WLTogether-Refresh-Secret-AtLeast256Bits-ChangeInProduction!}
+    access-token-expiration: 7200       # 2 hours
+    refresh-token-expiration: 2592000   # 30 days
+    issuer: wltogether
+
+# Resilience4j Rate Limiting
+resilience4j:
+  ratelimiter:
+    instances:
+      login:
+        limit-for-period: 5
+        limit-refresh-period: 60s
+        timeout-duration: 0
+      register:
+        limit-for-period: 3
+        limit-refresh-period: 60s
+        timeout-duration: 0
+      verify-code:
+        limit-for-period: 3
+        limit-refresh-period: 60s
+        timeout-duration: 0
+      api:
+        limit-for-period: 60
+        limit-refresh-period: 60s
+        timeout-duration: 0
+
+# Upload limits
+upload:
+  avatar:
+    max-size: 2097152              # 2MB
+    allowed-types: image/png,image/jpeg,image/webp
+    target-width: 256
+    target-height: 256
+
+# Session limits
+session:
+  max-participants: 20
+  max-concurrent-per-user: 5
+
+# Storage
+storage:
+  avatar-dir: ${app.data-dir:./data}/avatars
+
+logging:
+  level:
+    root: INFO
+    com.wltogether: DEBUG
