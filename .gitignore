@@ -38,11 +38,14 @@ Thumbs.db
 *.log
 logs/
 
+<<<<<<< HEAD
 # Project docs (not for distribution)
 CLAUDE.md
 架构设计方案.md
 编码执行计划.md
 
+=======
+>>>>>>> 7cebd7a (feat: 阶段一完成 — 后端核心)
 # Node (Web frontend)
 node_modules/
 dist/
@@ -52,4 +55,7 @@ web-dist/
 *.apk
 *.aab
 local.properties
+<<<<<<< HEAD
 .vite/
+=======
+>>>>>>> 7cebd7a (feat: 阶段一完成 — 后端核心)

@@ -135,7 +135,6 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AuthException("USER_NOT_FOUND", "用户不存在"));
 
-        // Blacklist old refresh token
         if (tokenId != null) {
             refreshTokenBlacklist.blacklist(tokenId, 60 * 60 * 24 * 30);
         }
@@ -201,10 +200,6 @@ public class AuthService {
                 .build();
     }
 
-    /**
-     * Generate a unique 8-digit UID.
-     * Uses SecureRandom for unpredictability, retries on collision.
-     */
     private String generateUid() {
         SecureRandom random = new SecureRandom();
         for (int i = 0; i < 10; i++) {

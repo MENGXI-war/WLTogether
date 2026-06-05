@@ -136,6 +136,18 @@ public class GroupController {
 
     // ========== Avatar ==========
 
+    @GetMapping("/{id}/avatar")
+    public ResponseEntity<byte[]> getAvatar(@PathVariable Long id) {
+        try {
+            byte[] bytes = groupService.getGroupAvatar(id);
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.IMAGE_PNG)
+                    .body(bytes);
+        } catch (IOException e) {
+            return ResponseEntity.status(404).build();
+        }
+    }
+
     @PostMapping("/{id}/avatar")
     public ResponseEntity<ApiResponse<String>> uploadAvatar(Authentication auth,
                                                              @PathVariable Long id,

@@ -49,16 +49,12 @@ public class UserController {
         return ResponseEntity.ok(toUserInfo(user));
     }
 
-    // ---- UID-based lookup ----
-
     @GetMapping("/by-uid/{uid}")
     public ResponseEntity<LoginResponse.UserInfo> getByUid(@PathVariable String uid) {
         User user = userRepository.findByUid(uid)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         return ResponseEntity.ok(toUserInfo(user));
     }
-
-    // ---- Avatar ----
 
     @PostMapping("/me/avatar")
     public ResponseEntity<ApiResponse<String>> uploadAvatar(Authentication auth,
@@ -83,16 +79,11 @@ public class UserController {
     public ResponseEntity<byte[]> getAvatar(@PathVariable Long id) {
         try {
             byte[] imageBytes = userService.getAvatar(id);
-            return ResponseEntity.ok()
-                    .contentType(MediaType.IMAGE_PNG)
-                    .body(imageBytes);
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(imageBytes);
         } catch (IOException e) {
-            // Return default avatar SVG
             return ResponseEntity.status(404).build();
         }
     }
-
-    // ---- Public Key ----
 
     @GetMapping("/{id}/public-key")
     public ResponseEntity<ApiResponse<String>> getPublicKey(@PathVariable Long id) {

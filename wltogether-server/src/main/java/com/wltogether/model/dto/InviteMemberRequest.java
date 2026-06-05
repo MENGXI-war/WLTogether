@@ -5,6 +5,6 @@ import lombok.Data;
 
 @Data
 public class InviteMemberRequest {
-    @NotBlank
     private String username;
+    private String uid;
 }

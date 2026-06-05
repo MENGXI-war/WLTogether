@@ -45,8 +45,6 @@ public class GroupService {
             "image/png", "image/jpeg", "image/webp"
     );
 
-    // ===================== Basic CRUD =====================
-
     @Transactional
     public GroupResponse createGroup(Long userId, CreateGroupRequest request) {
         Group group = Group.builder()
@@ -105,11 +103,18 @@ public class GroupService {
 
     @Transactional
     public MemberResponse inviteMember(Long groupId, Long inviterId, InviteMemberRequest request) {
-        Group group = ensureOwnerOrAdmin(groupId, inviterId);
+        ensureOwnerOrAdmin(groupId, inviterId);
 
-        // Check join mode - if not INVITE_ONLY, user can also join via application
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+        User user;
+        if (request.getUid() != null) {
+            user = userRepository.findByUid(request.getUid())
+                    .orElseThrow(() -> new IllegalArgumentException("用户不存在（UID: " + request.getUid() + "）"));
+        } else if (request.getUsername() != null) {
+            user = userRepository.findByUsername(request.getUsername())
+                    .orElseThrow(() -> new IllegalArgumentException("用户不存在（username: " + request.getUsername() + "）"));
+        } else {
+            throw new IllegalArgumentException("请提供 username 或 uid");
+        }
 
         if (groupMemberRepository.existsByGroupIdAndUserId(groupId, user.getId())) {
             throw new IllegalArgumentException("该用户已在群组中");
@@ -182,20 +187,21 @@ public class GroupService {
 
     @Transactional
     public void changeMemberRole(Long groupId, Long operatorId, Long targetUserId, String newRole) {
-        GroupMember operator = ensureOwnerOrAdminMember(groupId, operatorId);
+        GroupMember operator = groupMemberRepository.findByGroupIdAndUserId(groupId, operatorId)
+                .orElseThrow(() -> new IllegalArgumentException("你不在此群组中"));
+        if (!"OWNER".equals(operator.getRole()) && !"ADMIN".equals(operator.getRole())) {
+            throw new IllegalArgumentException("仅群主/管理员可执行此操作");
+        }
 
         GroupMember target = groupMemberRepository.findByGroupIdAndUserId(groupId, targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("目标用户不在此群组中"));
 
-        // Only OWNER can promote to ADMIN
         if ("ADMIN".equals(newRole) && !"OWNER".equals(operator.getRole())) {
             throw new IllegalArgumentException("仅群主可设置管理员");
         }
-        // Cannot change OWNER role
         if ("OWNER".equals(target.getRole())) {
             throw new IllegalArgumentException("不能修改群主的角色");
         }
-        // Only OWNER can demote ADMIN
         if ("ADMIN".equals(target.getRole()) && "MEMBER".equals(newRole) && !"OWNER".equals(operator.getRole())) {
             throw new IllegalArgumentException("仅群主可取消管理员");
         }
@@ -219,11 +225,9 @@ public class GroupService {
         GroupMember targetMember = groupMemberRepository.findByGroupIdAndUserId(groupId, newOwnerId)
                 .orElseThrow(() -> new IllegalArgumentException("目标用户不在此群组中"));
 
-        // Update group owner
         group.setOwnerId(newOwnerId);
         groupRepository.save(group);
 
-        // Switch roles
         GroupMember currentOwnerMember = groupMemberRepository.findByGroupIdAndUserId(groupId, currentOwnerId)
                 .orElseThrow(() -> new IllegalArgumentException("当前群主不在群组中"));
         currentOwnerMember.setRole("ADMIN");
@@ -248,20 +252,11 @@ public class GroupService {
 
         Instant mutedUntil;
         switch (duration) {
-            case "1h":
-                mutedUntil = Instant.now().plus(1, ChronoUnit.HOURS);
-                break;
-            case "8h":
-                mutedUntil = Instant.now().plus(8, ChronoUnit.HOURS);
-                break;
-            case "forever":
-                mutedUntil = Instant.now().plus(36500, ChronoUnit.DAYS); // ~100 years
-                break;
-            case "none":
-                mutedUntil = null;
-                break;
-            default:
-                throw new IllegalArgumentException("无效的禁言时长: " + duration);
+            case "1h": mutedUntil = Instant.now().plus(1, ChronoUnit.HOURS); break;
+            case "8h": mutedUntil = Instant.now().plus(8, ChronoUnit.HOURS); break;
+            case "forever": mutedUntil = Instant.now().plus(36500, ChronoUnit.DAYS); break;
+            case "none": mutedUntil = null; break;
+            default: throw new IllegalArgumentException("无效的禁言时长: " + duration);
         }
 
         target.setMutedUntil(mutedUntil);
@@ -275,10 +270,8 @@ public class GroupService {
     public void updateNicknameInGroup(Long groupId, Long userId, String nicknameInGroup) {
         GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("你不在此群组中"));
-
         member.setNicknameInGroup(nicknameInGroup);
         groupMemberRepository.save(member);
-        log.info("User {} set nickname in group {} to '{}'", userId, groupId, nicknameInGroup);
     }
 
     // ===================== Avatar =====================
@@ -286,26 +279,15 @@ public class GroupService {
     @Transactional
     public String uploadGroupAvatar(Long groupId, Long userId, MultipartFile file) throws IOException {
         ensureOwnerOrAdmin(groupId, userId);
+        if (file.isEmpty()) throw new IllegalArgumentException("文件为空");
+        if (file.getSize() > 2 * 1024 * 1024) throw new IllegalArgumentException("头像文件不能超过2MB");
+        String ct = file.getContentType();
+        if (ct == null || !ALLOWED_CONTENT_TYPES.contains(ct)) throw new IllegalArgumentException("仅支持PNG/JPEG/WebP");
 
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("文件为空");
-        }
-        if (file.getSize() > 2 * 1024 * 1024) {
-            throw new IllegalArgumentException("头像文件不能超过 2MB");
-        }
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException("仅支持 PNG / JPEG / WebP 格式");
-        }
-
-        // Read, resize, convert to PNG
         BufferedImage original;
-        try (InputStream in = file.getInputStream()) {
-            original = ImageIO.read(in);
-        }
-        if (original == null) {
-            throw new IllegalArgumentException("无法解析图片文件，请确认文件未损坏");
-        }
+        try (InputStream in = file.getInputStream()) { original = ImageIO.read(in); }
+        if (original == null) throw new IllegalArgumentException("无法解析图片");
+
         BufferedImage resized = resizeImage(original, 256, 256);
         byte[] pngBytes;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -313,46 +295,36 @@ public class GroupService {
             pngBytes = baos.toByteArray();
         }
 
-        // Ensure directory
         Path dir = Paths.get(avatarDir);
-        if (!Files.exists(dir)) {
-            Files.createDirectories(dir);
-        }
-
-        // Save: {avatarDir}/group_{groupId}.png
+        if (!Files.exists(dir)) Files.createDirectories(dir);
         Path avatarPath = dir.resolve("group_" + groupId + ".png");
         Files.write(avatarPath, pngBytes);
 
-        // Update DB
         String avatarUrl = "/api/groups/" + groupId + "/avatar?t=" + System.currentTimeMillis();
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new IllegalArgumentException("群组不存在"));
+        Group group = groupRepository.findById(groupId).orElseThrow(() -> new IllegalArgumentException("群组不存在"));
         group.setAvatarUrl(avatarUrl);
         groupRepository.save(group);
-
-        log.info("Group avatar uploaded for group {} ({} bytes)", groupId, pngBytes.length);
         return avatarUrl;
     }
 
     @Transactional
     public void deleteGroupAvatar(Long groupId, Long userId) {
         ensureOwnerOrAdmin(groupId, userId);
-
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new IllegalArgumentException("群组不存在"));
+        Group group = groupRepository.findById(groupId).orElseThrow(() -> new IllegalArgumentException("群组不存在"));
         group.setAvatarUrl(null);
         groupRepository.save(group);
-
-        Path avatarPath = Paths.get(avatarDir, "group_" + groupId + ".png");
-        try {
-            Files.deleteIfExists(avatarPath);
-        } catch (IOException e) {
-            log.warn("Failed to delete group avatar file: {}", avatarPath, e);
-        }
-        log.info("Group avatar deleted for group {}", groupId);
+        try { Files.deleteIfExists(Paths.get(avatarDir, "group_" + groupId + ".png")); } catch (IOException e) { log.warn("delete fail: {}", e.getMessage()); }
     }
 
-    // ===================== Helper Methods =====================
+    public byte[] getGroupAvatar(Long groupId) throws IOException {
+        Path avatarPath = Paths.get(avatarDir, "group_" + groupId + ".png");
+        if (!Files.exists(avatarPath)) {
+            throw new IOException("No avatar");
+        }
+        return Files.readAllBytes(avatarPath);
+    }
+
+    // ===================== Helpers =====================
 
     private Group ensureOwnerOrAdmin(Long groupId, Long userId) {
         GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
@@ -360,17 +332,7 @@ public class GroupService {
         if (!"OWNER".equals(member.getRole()) && !"ADMIN".equals(member.getRole())) {
             throw new IllegalArgumentException("仅群主/管理员可执行此操作");
         }
-        return groupRepository.findById(groupId)
-                .orElseThrow(() -> new IllegalArgumentException("群组不存在"));
-    }
-
-    private GroupMember ensureOwnerOrAdminMember(Long groupId, Long userId) {
-        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("你不在此群组中"));
-        if (!"OWNER".equals(member.getRole()) && !"ADMIN".equals(member.getRole())) {
-            throw new IllegalArgumentException("仅群主/管理员可执行此操作");
-        }
-        return member;
+        return groupRepository.findById(groupId).orElseThrow(() -> new IllegalArgumentException("群组不存在"));
     }
 
     private void ensureMember(Long groupId, Long userId) {
@@ -382,35 +344,23 @@ public class GroupService {
     private GroupResponse toResponse(Group group) {
         long count = groupMemberRepository.countByGroupId(group.getId());
         return GroupResponse.builder()
-                .id(group.getId())
-                .name(group.getName())
-                .ownerId(group.getOwnerId())
-                .description(group.getDescription())
-                .avatarUrl(group.getAvatarUrl())
-                .announcement(group.getAnnouncement())
-                .joinMode(group.getJoinMode())
-                .tags(group.getTags())
-                .lastMessageAt(group.getLastMessageAt())
-                .memberCount(count)
-                .createdAt(group.getCreatedAt())
-                .build();
+                .id(group.getId()).name(group.getName()).ownerId(group.getOwnerId())
+                .description(group.getDescription()).avatarUrl(group.getAvatarUrl())
+                .announcement(group.getAnnouncement()).joinMode(group.getJoinMode())
+                .tags(group.getTags()).lastMessageAt(group.getLastMessageAt())
+                .memberCount(count).createdAt(group.getCreatedAt()).build();
     }
 
-    private BufferedImage resizeImage(BufferedImage original, int width, int height) {
-        int srcW = original.getWidth();
-        int srcH = original.getHeight();
-        int cropSize = Math.min(srcW, srcH);
-        int cropX = (srcW - cropSize) / 2;
-        int cropY = (srcH - cropSize) / 2;
-
-        BufferedImage cropped = original.getSubimage(cropX, cropY, cropSize, cropSize);
-        BufferedImage resized = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+    private BufferedImage resizeImage(BufferedImage original, int w, int h) {
+        int crop = Math.min(original.getWidth(), original.getHeight());
+        int x = (original.getWidth() - crop) / 2, y = (original.getHeight() - crop) / 2;
+        BufferedImage cropped = original.getSubimage(x, y, crop, crop);
+        BufferedImage resized = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = resized.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g.drawImage(cropped, 0, 0, width, height, null);
+        g.drawImage(cropped, 0, 0, w, h, null);
         g.dispose();
-
         return resized;
     }
 }

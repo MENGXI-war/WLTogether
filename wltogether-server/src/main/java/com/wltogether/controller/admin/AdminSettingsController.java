@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -37,5 +38,23 @@ public class AdminSettingsController {
         config.setUpdatedAt(java.time.Instant.now());
         serverConfigRepository.save(config);
         return ResponseEntity.ok(ApiResponse.ok("配置已更新"));
+    }
+
+    @PostMapping("/batch")
+    @Transactional
+    public ResponseEntity<ApiResponse<Void>> batchUpdate(Authentication auth,
+                                                          @RequestBody Map<String, String> settings) {
+        Long userId = (Long) auth.getPrincipal();
+        List<String> updated = new ArrayList<>();
+        for (Map.Entry<String, String> entry : settings.entrySet()) {
+            serverConfigRepository.findByConfigKey(entry.getKey()).ifPresent(config -> {
+                config.setConfigValue(entry.getValue());
+                config.setUpdatedBy(userId);
+                config.setUpdatedAt(java.time.Instant.now());
+                serverConfigRepository.save(config);
+                updated.add(entry.getKey());
+            });
+        }
+        return ResponseEntity.ok(ApiResponse.ok("已更新 " + updated.size() + " 项配置"));
     }
 }
