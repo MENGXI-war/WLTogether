@@ -1,6 +1,7 @@
 package com.wltogether.websocket;
 
 import com.wltogether.service.OnlineStatusService;
+import com.wltogether.service.SessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -15,6 +16,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 public class WebSocketEventListener {
 
     private final OnlineStatusService onlineStatusService;
+    private final SessionService sessionService;
 
     @EventListener
     public void handleConnect(SessionConnectEvent event) {
@@ -24,6 +26,7 @@ public class WebSocketEventListener {
 
         if (userId != null && wsSessionId != null) {
             onlineStatusService.userConnected(userId, wsSessionId);
+            sessionService.onUserConnected(userId);
         }
     }
 
@@ -31,9 +34,13 @@ public class WebSocketEventListener {
     public void handleDisconnect(SessionDisconnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
         String wsSessionId = accessor.getSessionId();
+        Long userId = (Long) accessor.getSessionAttributes().get("userId");
 
         if (wsSessionId != null) {
             onlineStatusService.userDisconnected(wsSessionId);
+        }
+        if (userId != null) {
+            sessionService.onUserDisconnected(userId);
         }
     }
 }

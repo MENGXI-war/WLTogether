@@ -7,7 +7,9 @@ import java.util.Optional;
 
 public interface SessionParticipantRepository extends JpaRepository<SessionParticipant, Long> {
     List<SessionParticipant> findBySessionId(Long sessionId);
+    List<SessionParticipant> findByUserId(Long userId);
     Optional<SessionParticipant> findBySessionIdAndUserId(Long sessionId, Long userId);
     long countBySessionId(Long sessionId);
     boolean existsBySessionIdAndUserId(Long sessionId, Long userId);
+    void deleteBySessionIdAndUserId(Long sessionId, Long userId);
 }

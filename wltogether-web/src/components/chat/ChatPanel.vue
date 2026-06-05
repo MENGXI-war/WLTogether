@@ -40,6 +40,7 @@
         @keydown.enter.exact="onSend"
         @input="onInput"
       />
+      <el-button :icon="Picture" circle @click="onPickImage" :loading="imageUploading" />
       <el-button type="primary" :icon="Promotion" circle @click="onSend" :disabled="!inputText.trim()" />
     </div>
   </div>
@@ -48,7 +49,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Promotion, Loading } from '@element-plus/icons-vue'
+import { Promotion, Picture, Loading } from '@element-plus/icons-vue'
 import { useChat } from '@/composables/useChat'
 import ChatBubble from './ChatBubble.vue'
 
@@ -62,11 +63,13 @@ const props = defineProps({
 const {
   loadMore,
   sendMessage,
+  sendImage,
   startTyping,
   stopTyping,
   onMessage,
   loading,
-  loadingMore
+  loadingMore,
+  imageUploading
 } = useChat(props.groupId)
 
 const messagesEl = ref(null)
@@ -140,6 +143,28 @@ async function onSend() {
   if (typingTimer) clearTimeout(typingTimer)
 }
 
+function onPickImage() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/png,image/jpeg,image/webp,image/gif'
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning('图片大小不能超过 10MB')
+      return
+    }
+    try {
+      await sendImage(file)
+      scrollToBottomNext = true
+      scrollToBottom()
+    } catch (err) {
+      ElMessage.error(err.response?.data?.message || '图片上传失败')
+    }
+  }
+  input.click()
+}
+
 let inputDebounce = null
 function onInput() {
   if (inputText.value.trim()) {
@@ -185,7 +210,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   padding: 40px 0;
-  color: #909399;
+  color: var(--color-text-secondary);
   font-size: 14px;
 }
 
@@ -199,8 +224,8 @@ onUnmounted(() => {
   align-items: flex-end;
   gap: 8px;
   padding: 12px 16px;
-  background: #fff;
-  border-top: 1px solid #e4e7ed;
+  background: var(--color-sidebar);
+  border-top: 1px solid var(--color-border);
 }
 
 .chat-input :deep(.el-textarea__inner) {

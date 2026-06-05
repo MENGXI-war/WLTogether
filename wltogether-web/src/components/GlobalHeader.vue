@@ -11,9 +11,25 @@
         <el-button :icon="HomeFilled" circle @click="router.push('/groups')" class="icon-btn" />
       </el-tooltip>
 
+      <el-tooltip content="帮助文档" placement="bottom">
+        <el-button :icon="QuestionFilled" circle @click="router.push('/docs')" class="icon-btn" />
+      </el-tooltip>
+
+      <el-tooltip content="切换主题" placement="bottom">
+        <el-button :icon="isDark ? Sunny : Moon" circle @click="onToggleTheme" class="icon-btn" />
+      </el-tooltip>
+
+      <el-tooltip content="导出离线包" placement="bottom">
+        <el-button :icon="Box" circle @click="router.push('/package/export')" class="icon-btn" />
+      </el-tooltip>
+
+      <span class="btn-separator" />
+
       <el-tooltip content="新建群组" placement="bottom">
         <el-button :icon="Plus" circle @click="onCreateGroup" class="icon-btn" />
       </el-tooltip>
+
+      <el-divider direction="vertical" />
 
       <el-tooltip content="设置" placement="bottom">
         <el-button :icon="Setting" circle @click="router.push('/settings')" class="icon-btn" />
@@ -40,15 +56,22 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { HomeFilled, Plus, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { HomeFilled, Plus, Setting, SwitchButton, Sunny, Moon, Box, QuestionFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { useAppActions } from '@/composables/useAppActions'
+import { useTheme } from '@/composables/useTheme'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const { disconnect } = useWebSocket()
 const { requestCreateGroup } = useAppActions()
+const { isDark, setTheme } = useTheme()
+
+function onToggleTheme() {
+  const next = isDark.value ? 'light' : 'dark'
+  setTheme(next)
+}
 
 function onCreateGroup() {
   requestCreateGroup()
@@ -123,6 +146,10 @@ function onCommand(cmd) {
 
 .icon-btn:hover {
   transform: scale(1.1);
+}
+
+.btn-separator {
+  width: 12px;
 }
 
 .avatar-btn {

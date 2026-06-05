@@ -62,7 +62,7 @@ defineEmits(['invite'])
   padding: 12px 16px;
   font-size: 14px;
   font-weight: 500;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .member-items {
@@ -80,7 +80,7 @@ defineEmits(['invite'])
 }
 
 .member-item:hover {
-  background: #f5f7fa;
+  background: var(--color-bg);
 }
 
 .member-info {

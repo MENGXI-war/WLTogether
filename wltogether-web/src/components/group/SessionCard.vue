@@ -60,7 +60,7 @@ const statusText = computed(() => {
 }
 
 .session-card:hover {
-  background: #f5f7fa;
+  background: var(--color-bg);
 }
 
 .session-icon {
@@ -69,9 +69,9 @@ const statusText = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ecf5ff;
+  background: var(--color-bg);
   border-radius: 10px;
-  color: #409eff;
+  color: var(--color-primary);
 }
 
 .session-info {
@@ -98,6 +98,6 @@ const statusText = computed(() => {
 
 .participant-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 </style>

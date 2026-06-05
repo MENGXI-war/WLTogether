@@ -9,11 +9,14 @@ import com.wltogether.repository.SessionParticipantRepository;
 import com.wltogether.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,12 +26,16 @@ public class SessionService {
     private final SessionRepository sessionRepository;
     private final SessionParticipantRepository participantRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final OnlineStatusService onlineStatusService;
 
     @Value("${session.max-participants:20}")
     private int maxParticipants;
 
     @Value("${session.max-concurrent-per-user:5}")
     private int maxConcurrentPerUser;
+
+    /** Track when all participants of a session went offline */
+    private final Map<Long, Instant> sessionAllOfflineSince = new ConcurrentHashMap<>();
 
     @Transactional
     public SessionResponse createSession(Long groupId, Long userId, CreateSessionRequest request) {
@@ -104,6 +111,94 @@ public class SessionService {
         }
 
         return toResponse(session);
+    }
+
+    @Transactional
+    public void leaveSession(Long sessionId, Long userId) {
+        participantRepository.deleteBySessionIdAndUserId(sessionId, userId);
+        long remaining = participantRepository.countBySessionId(sessionId);
+        if (remaining == 0) {
+            forceEndSession(sessionId);
+        }
+    }
+
+    @Transactional
+    public void forceEndSession(Long sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("会话不存在"));
+        session.setStatus("ENDED");
+        session.setEndedAt(Instant.now());
+        sessionRepository.save(session);
+    }
+
+    /**
+     * Check if session has remaining participants. Returns true if empty.
+     */
+    public boolean hasNoParticipants(Long sessionId) {
+        return participantRepository.countBySessionId(sessionId) == 0;
+    }
+
+    /**
+     * Called when a user disconnects from WebSocket.
+     * Check all sessions they're in — if all participants offline, start the timeout.
+     */
+    public void onUserDisconnected(Long userId) {
+        List<SessionParticipant> participations = participantRepository.findByUserId(userId);
+        for (SessionParticipant p : participations) {
+            if (!"ACTIVE".equals(sessionRepository.findById(p.getSessionId())
+                    .map(s -> s.getStatus()).orElse("ENDED"))) {
+                continue;
+            }
+            checkAndTrackAllOffline(p.getSessionId());
+        }
+    }
+
+    /**
+     * Called when a user connects to WebSocket.
+     * Clear the all-offline tracking for sessions they're in.
+     */
+    public void onUserConnected(Long userId) {
+        List<SessionParticipant> participations = participantRepository.findByUserId(userId);
+        for (SessionParticipant p : participations) {
+            sessionAllOfflineSince.remove(p.getSessionId());
+        }
+    }
+
+    /**
+     * If all participants in a session are offline, record the time.
+     */
+    private void checkAndTrackAllOffline(Long sessionId) {
+        List<SessionParticipant> participants = participantRepository.findBySessionId(sessionId);
+        boolean allOffline = participants.stream()
+                .noneMatch(p -> onlineStatusService.isOnline(p.getUserId()));
+        if (allOffline && !participants.isEmpty()) {
+            sessionAllOfflineSince.putIfAbsent(sessionId, Instant.now());
+        }
+    }
+
+    /**
+     * Scheduled task: every 60 seconds, check for sessions where all participants
+     * have been offline for more than 10 minutes and end them.
+     */
+    @Scheduled(fixedRate = 60_000)
+    public void cleanupStaleSessions() {
+        Instant cutoff = Instant.now().minusSeconds(600); // 10 minutes
+        for (Map.Entry<Long, Instant> entry : sessionAllOfflineSince.entrySet()) {
+            if (entry.getValue().isBefore(cutoff)) {
+                Long sessionId = entry.getKey();
+                // Double-check all participants are still offline
+                List<SessionParticipant> participants = participantRepository.findBySessionId(sessionId);
+                boolean anyoneOnline = participants.stream()
+                        .anyMatch(p -> onlineStatusService.isOnline(p.getUserId()));
+                if (!anyoneOnline) {
+                    forceEndSession(sessionId);
+                    sessionAllOfflineSince.remove(sessionId);
+                } else {
+                    // Someone came back, clear tracking
+                    sessionAllOfflineSince.remove(sessionId);
+                }
+            }
+        }
     }
 
     @Transactional

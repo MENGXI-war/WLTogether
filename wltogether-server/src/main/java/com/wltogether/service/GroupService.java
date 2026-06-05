@@ -3,9 +3,11 @@ package com.wltogether.service;
 import com.wltogether.model.dto.*;
 import com.wltogether.model.entity.Group;
 import com.wltogether.model.entity.GroupMember;
+import com.wltogether.model.entity.JoinRequest;
 import com.wltogether.model.entity.User;
 import com.wltogether.repository.GroupMemberRepository;
 import com.wltogether.repository.GroupRepository;
+import com.wltogether.repository.JoinRequestRepository;
 import com.wltogether.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,7 @@ public class GroupService {
 
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final JoinRequestRepository joinRequestRepository;
     private final UserRepository userRepository;
 
     @Value("${storage.avatar-dir:./data}/avatars")
@@ -362,5 +365,101 @@ public class GroupService {
         g.drawImage(cropped, 0, 0, w, h, null);
         g.dispose();
         return resized;
+    }
+
+    // ========== Join Requests ==========
+
+    @Transactional
+    public void requestJoin(Long groupId, Long userId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("群组不存在"));
+
+        if (!"APPROVAL".equals(group.getJoinMode())) {
+            throw new IllegalArgumentException("该群组不需要审批");
+        }
+
+        if (groupMemberRepository.existsByGroupIdAndUserId(groupId, userId)) {
+            throw new IllegalArgumentException("你已是该群组成员");
+        }
+
+        if (joinRequestRepository.existsByGroupIdAndUserIdAndStatus(groupId, userId, "PENDING")) {
+            throw new IllegalArgumentException("你已提交过加入申请，请等待审批");
+        }
+
+        JoinRequest req = JoinRequest.builder()
+                .groupId(groupId)
+                .userId(userId)
+                .status("PENDING")
+                .build();
+        joinRequestRepository.save(req);
+    }
+
+    public List<JoinRequestResponse> listJoinRequests(Long groupId, Long userId) {
+        ensureAdminOrOwner(groupId, userId);
+        List<JoinRequest> requests = joinRequestRepository
+                .findByGroupIdAndStatusOrderByCreatedAtAsc(groupId, "PENDING");
+        return requests.stream().map(r -> {
+            User u = userRepository.findById(r.getUserId()).orElse(null);
+            return JoinRequestResponse.builder()
+                    .id(r.getId())
+                    .groupId(r.getGroupId())
+                    .userId(r.getUserId())
+                    .username(u != null ? u.getUsername() : "")
+                    .nickname(u != null ? u.getNickname() : "")
+                    .status(r.getStatus())
+                    .createdAt(r.getCreatedAt())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void approveJoinRequest(Long groupId, Long adminUserId, Long requestId) {
+        ensureAdminOrOwner(groupId, adminUserId);
+        JoinRequest req = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("申请不存在"));
+        if (!req.getGroupId().equals(groupId)) {
+            throw new IllegalArgumentException("申请不属于此群组");
+        }
+        if (!"PENDING".equals(req.getStatus())) {
+            throw new IllegalArgumentException("申请已被处理");
+        }
+
+        req.setStatus("APPROVED");
+        req.setReviewedAt(Instant.now());
+        joinRequestRepository.save(req);
+
+        // Add as member
+        GroupMember member = GroupMember.builder()
+                .groupId(groupId)
+                .userId(req.getUserId())
+                .role("MEMBER")
+                .build();
+        groupMemberRepository.save(member);
+    }
+
+    @Transactional
+    public void rejectJoinRequest(Long groupId, Long adminUserId, Long requestId) {
+        ensureAdminOrOwner(groupId, adminUserId);
+        JoinRequest req = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("申请不存在"));
+        if (!req.getGroupId().equals(groupId)) {
+            throw new IllegalArgumentException("申请不属于此群组");
+        }
+        if (!"PENDING".equals(req.getStatus())) {
+            throw new IllegalArgumentException("申请已被处理");
+        }
+
+        req.setStatus("REJECTED");
+        req.setReviewedAt(Instant.now());
+        joinRequestRepository.save(req);
+    }
+
+    private void ensureAdminOrOwner(Long groupId, Long userId) {
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("你不在此群组中"));
+        String role = member.getRole();
+        if (!"OWNER".equals(role) && !"ADMIN".equals(role)) {
+            throw new IllegalArgumentException("仅群主和管理员可执行此操作");
+        }
     }
 }

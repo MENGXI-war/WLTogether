@@ -5,6 +5,7 @@ import com.wltogether.model.dto.SessionResponse;
 import com.wltogether.model.entity.Session;
 import com.wltogether.model.entity.User;
 import com.wltogether.repository.UserRepository;
+import com.wltogether.service.PlaybackSyncService;
 import com.wltogether.service.SessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class SessionLifecycleHandler {
 
     private final SessionService sessionService;
+    private final PlaybackSyncService playbackSyncService;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -102,15 +104,31 @@ public class SessionLifecycleHandler {
             return;
         }
 
-        User user = userRepository.findById(userId).orElse(null);
+        try {
+            User user = userRepository.findById(userId).orElse(null);
 
-        Map<String, Object> broadcast = Map.of(
-                "type", "session.user_left",
-                "sessionId", sessionId,
-                "userId", userId,
-                "nickname", user != null ? user.getNickname() : ""
-        );
-        messagingTemplate.convertAndSend("/topic/session/" + sessionId, broadcast);
+            sessionService.leaveSession(sessionId, userId);
+
+            Map<String, Object> broadcast = Map.of(
+                    "type", "session.user_left",
+                    "sessionId", sessionId,
+                    "userId", userId,
+                    "nickname", user != null ? user.getNickname() : ""
+            );
+            messagingTemplate.convertAndSend("/topic/session/" + sessionId, broadcast);
+
+            // If session is now empty, broadcast session.ended and clean up
+            if (sessionService.hasNoParticipants(sessionId)) {
+                Map<String, Object> endedBroadcast = Map.of(
+                        "type", "session.ended",
+                        "sessionId", sessionId
+                );
+                messagingTemplate.convertAndSend("/topic/session/" + sessionId, endedBroadcast);
+                playbackSyncService.cleanupSession(sessionId);
+            }
+        } catch (Exception e) {
+            sendError(principal, "LEAVE_FAILED", e.getMessage());
+        }
     }
 
     @MessageMapping("/session.end")

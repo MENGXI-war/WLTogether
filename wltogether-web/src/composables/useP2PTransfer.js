@@ -1,5 +1,9 @@
 import { ref } from 'vue'
 import WebTorrent from 'webtorrent'
+import filesApi from '@/api/files'
+
+// Private tracker announce URL
+const TRACKER_URL = '/api/tracker/announce'
 
 export function useP2PTransfer() {
   const client = ref(null)
@@ -11,12 +15,55 @@ export function useP2PTransfer() {
   const uploadSpeed = ref('')
   const peers = ref(0)
   const fileUrl = ref(null)
+  const transferMode = ref('p2p') // 'p2p' | 'relay'
 
   function getClient() {
     if (!client.value) {
-      client.value = new WebTorrent()
+      client.value = new WebTorrent({
+        tracker: {
+          announce: [TRACKER_URL]
+        }
+      })
     }
     return client.value
+  }
+
+  // =============== Server Relay Methods ===============
+
+  /**
+   * Upload file via server relay (HTTP).
+   * Returns { fileId, fileName, fileSize } on success.
+   */
+  async function uploadRelay(file, onProgress) {
+    transferMode.value = 'relay'
+    try {
+      const res = await filesApi.upload(file, (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const pct = Math.round((progressEvent.loaded / progressEvent.total) * 100)
+          onProgress(pct)
+        }
+      })
+      // Backend returns ApiResponse with data wrapper
+      return res.data || res
+    } finally {
+      transferMode.value = 'p2p'
+    }
+  }
+
+  /**
+   * Download file via server relay (HTTP).
+   * Returns a blob URL for the downloaded file.
+   */
+  async function downloadRelay(fileId) {
+    transferMode.value = 'relay'
+    try {
+      const blob = await filesApi.download(fileId)
+      const url = URL.createObjectURL(blob)
+      fileUrl.value = url
+      return url
+    } finally {
+      transferMode.value = 'p2p'
+    }
   }
 
   /**
@@ -28,7 +75,7 @@ export function useP2PTransfer() {
     const wt = getClient()
 
     return new Promise((resolve, reject) => {
-      wt.seed(file, (torrent) => {
+      wt.seed(file, { announce: [TRACKER_URL] }, (torrent) => {
         seeding.value = false
         resolve({
           magnetUri: torrent.magnetURI,
@@ -121,8 +168,11 @@ export function useP2PTransfer() {
     uploadSpeed,
     peers,
     fileUrl,
+    transferMode,
     seedFile,
     downloadFile,
+    uploadRelay,
+    downloadRelay,
     destroy
   }
 }

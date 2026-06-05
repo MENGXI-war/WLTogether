@@ -9,6 +9,7 @@ import com.wltogether.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +23,7 @@ public class UploadController {
 
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Upload image for chat. Returns a ChatMessage that the client should
@@ -35,7 +37,9 @@ public class UploadController {
         Long userId = (Long) auth.getPrincipal();
         try {
             ChatMessage message = fileStorageService.uploadChatImage(groupId, userId, file);
-            return ResponseEntity.ok(ApiResponse.ok("ok", toResponse(message)));
+            ChatMessageResponse response = toResponse(message);
+            messagingTemplate.convertAndSend("/topic/group/" + groupId, response);
+            return ResponseEntity.ok(ApiResponse.ok("ok", response));
         } catch (IOException e) {
             throw new IllegalArgumentException("图片上传失败: " + e.getMessage());
         }

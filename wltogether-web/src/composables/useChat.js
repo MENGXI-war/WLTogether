@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useWebSocket } from './useWebSocket'
+import chatApi from '@/api/chat'
 
 export function useChat(groupId) {
   const chatStore = useChatStore()
@@ -8,6 +9,7 @@ export function useChat(groupId) {
   const loading = ref(false)
   const loadingMore = ref(false)
   const sending = ref(false)
+  const imageUploading = ref(false)
 
   async function init() {
     loading.value = true
@@ -35,6 +37,21 @@ export function useChat(groupId) {
       sessionId,
       replyToId
     })
+  }
+
+  async function sendImage(file) {
+    imageUploading.value = true
+    try {
+      const res = await chatApi.uploadImage(groupId, file)
+      // Server broadcasts via WebSocket; add locally for instant feedback
+      const msg = res.data || res
+      if (msg && msg.id) {
+        chatStore.addMessage(groupId, msg)
+      }
+      return msg
+    } finally {
+      imageUploading.value = false
+    }
   }
 
   function startTyping() {
@@ -88,9 +105,11 @@ export function useChat(groupId) {
     loading,
     loadingMore,
     sending,
+    imageUploading,
     init,
     loadMore,
     sendMessage,
+    sendImage,
     startTyping,
     stopTyping,
     onMessage,

@@ -3,6 +3,11 @@ import { useAuthStore } from '@/stores/auth'
 
 const routes = [
   {
+    path: '/',
+    name: 'Landing',
+    component: () => import('@/views/LandingView.vue')
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
@@ -53,18 +58,19 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/docs',
+    name: 'Docs',
+    component: () => import('@/views/DocsView.vue')
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/views/SettingsView.vue'),
     meta: { requiresAuth: true }
   },
   {
-    path: '/',
-    redirect: '/groups'
-  },
-  {
     path: '/:pathMatch(.*)*',
-    redirect: '/groups'
+    redirect: '/'
   }
 ]
 

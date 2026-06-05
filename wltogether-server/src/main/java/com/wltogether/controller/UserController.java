@@ -1,6 +1,7 @@
 package com.wltogether.controller;
 
 import com.wltogether.model.dto.ApiResponse;
+import com.wltogether.model.dto.ChangePasswordRequest;
 import com.wltogether.model.dto.LoginResponse;
 import com.wltogether.model.dto.UpdateUserRequest;
 import com.wltogether.model.entity.User;
@@ -66,6 +67,14 @@ public class UserController {
         } catch (IOException e) {
             throw new IllegalArgumentException("头像处理失败: " + e.getMessage());
         }
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(Authentication auth,
+                                                             @RequestBody ChangePasswordRequest request) {
+        Long userId = (Long) auth.getPrincipal();
+        userService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.ok("密码修改成功"));
     }
 
     @DeleteMapping("/me/avatar")

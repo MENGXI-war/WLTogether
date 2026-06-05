@@ -52,6 +52,20 @@ export default {
     return api.put(`/api/groups/${groupId}/members/me/nickname`, { nicknameInGroup })
   },
 
+  // Join requests
+  requestJoin(groupId) {
+    return api.post(`/api/groups/${groupId}/join-requests`)
+  },
+  listJoinRequests(groupId) {
+    return api.get(`/api/groups/${groupId}/join-requests`)
+  },
+  approveJoinRequest(groupId, requestId) {
+    return api.put(`/api/groups/${groupId}/join-requests/${requestId}/approve`)
+  },
+  rejectJoinRequest(groupId, requestId) {
+    return api.put(`/api/groups/${groupId}/join-requests/${requestId}/reject`)
+  },
+
   // Avatar
   uploadAvatar(groupId, file) {
     const formData = new FormData()

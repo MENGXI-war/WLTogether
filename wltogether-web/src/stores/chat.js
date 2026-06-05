@@ -48,6 +48,10 @@ export const useChatStore = defineStore('chat', () => {
 
   function addMessage(groupId, message) {
     const state = getGroupState(groupId)
+    // Dedup: skip if message with same id already exists
+    if (message.id && state.messages.some(m => m.id === message.id)) {
+      return
+    }
     state.messages.push(message)
     // Cap at 500 messages in memory
     if (state.messages.length > 500) {

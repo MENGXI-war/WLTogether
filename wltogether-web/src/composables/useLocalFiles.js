@@ -7,10 +7,6 @@ export function useLocalFiles() {
   const hashing = ref(false)
   const hashProgress = ref(0)
 
-  /**
-   * Compute a fast file hash: SHA256 of first 1MB + last 1MB + file size.
-   * Falls back to SparkMD5 for simplicity (SHA256 is available via Web Crypto).
-   */
   async function computeHash(file) {
     hashing.value = true
     hashProgress.value = 0
@@ -19,11 +15,9 @@ export function useLocalFiles() {
       const chunkSize = 1024 * 1024 // 1MB
       const fileSize = file.size
 
-      // Read first 1MB
       const firstChunk = await readChunk(file, 0, Math.min(chunkSize, fileSize))
       hashProgress.value = 30
 
-      // Read last 1MB (or full file if smaller than 2MB)
       let lastChunk = null
       if (fileSize > chunkSize) {
         const start = Math.max(0, fileSize - chunkSize)
@@ -31,7 +25,6 @@ export function useLocalFiles() {
       }
       hashProgress.value = 60
 
-      // Compute hash: SparkMD5(first + last + size)
       const spark = new SparkMD5.ArrayBuffer()
       spark.append(firstChunk)
       if (lastChunk) spark.append(lastChunk)
@@ -53,33 +46,116 @@ export function useLocalFiles() {
     })
   }
 
-  /**
-   * Open file picker and return selected files with their hashes.
-   */
-  async function pickFiles(options = {}) {
-    try {
-      const [handle] = await window.showOpenFilePicker({
-        multiple: false,
-        ...options
-      })
-      const file = await handle.getFile()
-      selectedFile.value = file
+  // Fallback helper: create <input type="file"> and return promise
+  function inputFileFallback({ multiple, accept }) {
+    return new Promise((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.multiple = !!multiple
+      if (accept) input.accept = accept
 
-      const hash = await computeHash(file)
-      fileHash.value = hash
+      let resolved = false
 
-      return { file, hash }
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('File picker error:', err)
+      input.onchange = async (e) => {
+        resolved = true
+        const fileList = e.target.files
+        if (!fileList || fileList.length === 0) {
+          resolve(multiple ? { files: [], hashes: [] } : null)
+          return
+        }
+
+        if (multiple) {
+          const files = []
+          const hashes = []
+          for (const file of fileList) {
+            files.push(file)
+            hashes.push(await computeHash(file))
+          }
+          selectedFile.value = files[0]
+          fileHash.value = hashes[0]
+          resolve({ files, hashes })
+        } else {
+          const file = fileList[0]
+          selectedFile.value = file
+          const hash = await computeHash(file)
+          fileHash.value = hash
+          resolve({ file, hash })
+        }
       }
-      return null
-    }
+
+      // Detect cancellation via window refocus
+      const onFocus = () => {
+        window.removeEventListener('focus', onFocus)
+        setTimeout(() => {
+          if (!resolved) resolve(null)
+        }, 300)
+      }
+      window.addEventListener('focus', onFocus)
+
+      input.click()
+    })
   }
 
   /**
-   * Create a blob URL for a file to be used as video/audio source.
+   * Open file picker for a single file. Returns { file, hash } or null.
    */
+  async function pickFiles(options = {}) {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          multiple: false,
+          ...options
+        })
+        const file = await handle.getFile()
+        selectedFile.value = file
+
+        const hash = await computeHash(file)
+        fileHash.value = hash
+
+        return { file, hash }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('File picker error:', err)
+        }
+        return null
+      }
+    }
+
+    return inputFileFallback({ multiple: false, accept: options.accept })
+  }
+
+  /**
+   * Pick multiple files at once. Returns { files: File[], hashes: string[] } or null.
+   */
+  async function pickMultipleFiles(options = {}) {
+    if (window.showOpenFilePicker) {
+      try {
+        const handles = await window.showOpenFilePicker({
+          multiple: true,
+          ...options
+        })
+        const files = []
+        const hashes = []
+        for (const handle of handles) {
+          const file = await handle.getFile()
+          files.push(file)
+          hashes.push(await computeHash(file))
+        }
+        if (files.length === 0) return null
+        selectedFile.value = files[0]
+        fileHash.value = hashes[0]
+        return { files, hashes }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Multiple file picker error:', err)
+        }
+        return null
+      }
+    }
+
+    return inputFileFallback({ multiple: true, accept: options.accept })
+  }
+
   function getFileUrl(file) {
     return URL.createObjectURL(file)
   }
@@ -94,6 +170,7 @@ export function useLocalFiles() {
     hashing,
     hashProgress,
     pickFiles,
+    pickMultipleFiles,
     computeHash,
     getFileUrl,
     revokeFileUrl

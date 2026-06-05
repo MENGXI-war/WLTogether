@@ -117,12 +117,14 @@ export const useWebSocketStore = defineStore('websocket', () => {
   function send(destination, body) {
     if (!client.value || !connected.value) {
       console.warn('[WS] Cannot send: not connected')
-      return
+      ElMessage.warning('消息发送失败：WebSocket 未连接，正在尝试重连…')
+      return false
     }
     client.value.publish({
       destination: `/app${destination}`,
       body: JSON.stringify(body)
     })
+    return true
   }
 
   return {

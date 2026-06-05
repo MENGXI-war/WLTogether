@@ -11,9 +11,10 @@
         <span class="track-album">{{ album || '' }}</span>
       </div>
     </div>
-    <audio ref="audioEl" controls class="audio-element" />
+    <audio ref="audioEl" :src="src" controls class="audio-element" />
     <div class="player-bar">
       <div class="sync-status">
+        <span class="time-display">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
         <el-tag v-if="syncOffset !== null" :type="syncQuality" size="small">
           同步 {{ Math.abs(syncOffset) }}ms
         </el-tag>
@@ -27,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import Plyr from 'plyr'
 import 'plyr/dist/plyr.css'
 import { Headset } from '@element-plus/icons-vue'
@@ -67,7 +68,21 @@ const emit = defineEmits(['ready', 'timeupdate', 'play', 'pause', 'seek', 'sync'
 
 const audioEl = ref(null)
 const isPlaying = ref(false)
+const currentTime = ref(0)
+const duration = ref(0)
 let player = null
+
+function formatTime(seconds) {
+  if (!seconds || !isFinite(seconds)) return '--:--'
+  const s = Math.floor(seconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  }
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
 
 const syncQuality = computed(() => {
   const offset = Math.abs(props.syncOffset)
@@ -83,8 +98,15 @@ function initPlayer() {
     controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume']
   })
 
-  player.on('ready', () => emit('ready', player))
-  player.on('timeupdate', () => emit('timeupdate', player.currentTime))
+  player.on('ready', () => {
+    duration.value = player.duration || 0
+    emit('ready', player)
+  })
+  player.on('timeupdate', () => {
+    currentTime.value = player.currentTime
+    if (!duration.value) duration.value = player.duration || 0
+    emit('timeupdate', player.currentTime)
+  })
   player.on('play', () => { isPlaying.value = true; emit('play', player.currentTime) })
   player.on('pause', () => { isPlaying.value = false; emit('pause', player.currentTime) })
   player.on('seeked', () => emit('seek', player.currentTime))
@@ -97,7 +119,7 @@ watch(() => props.src, (newSrc) => {
       sources: [{ src: newSrc }]
     }
   }
-})
+}, { immediate: true })
 
 onMounted(() => initPlayer())
 
@@ -108,9 +130,6 @@ onUnmounted(() => {
 defineExpose({ player })
 </script>
 
-<script>
-import { computed } from 'vue'
-</script>
 
 <style scoped>
 .music-player {
@@ -182,6 +201,13 @@ import { computed } from 'vue'
 
 .audio-element :deep(.plyr) {
   --plyr-color-main: #fff;
+}
+
+.time-display {
+  font-size: 13px;
+  opacity: 0.85;
+  font-family: monospace;
+  white-space: nowrap;
 }
 
 .player-bar {

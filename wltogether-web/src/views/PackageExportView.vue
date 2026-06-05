@@ -44,12 +44,20 @@
               <el-radio :value="86400">24 小时</el-radio>
               <el-radio :value="604800">7 天</el-radio>
               <el-radio :value="2592000">30 天</el-radio>
+              <el-radio :value="0">永久有效</el-radio>
             </el-radio-group>
           </el-form-item>
           <el-alert
-            v-if="security.aesEncrypt"
-            title="密钥将生成 .wlk 私钥文件。请安全保存此文件，否则 24 小时后无法解密。"
+            v-if="security.aesEncrypt && security.ttl > 0"
+            title="密钥将生成 .wlk 私钥文件。请安全保存此文件，过期后将无法解密。"
             type="warning"
+            show-icon
+            :closable="false"
+          />
+          <el-alert
+            v-if="security.aesEncrypt && security.ttl === 0"
+            title="密钥将生成 .wlk 私钥文件（永久有效）。请安全保存此文件，离线时或离开服务器后仍可使用。"
+            type="info"
             show-icon
             :closable="false"
           />
@@ -89,19 +97,25 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Loading } from '@element-plus/icons-vue'
 import { useLocalFiles } from '@/composables/useLocalFiles'
+import { useGroupsStore } from '@/stores/groups'
+import { buildWlp, buildWlk, generateAesKey, generateSigningKeyPair } from '@/utils/crypto'
 
 const router = useRouter()
+const groupsStore = useGroupsStore()
 const { pickFiles } = useLocalFiles()
 
 const activeStep = ref(0)
 const selectedFile = ref(null)
 const fileHash = ref('')
 const generated = ref(false)
+const generating = ref(false)
+const wlpBytes = ref(null)
+const wlkBytes = ref(null)
 
 const security = reactive({
   groupBound: true,
@@ -118,12 +132,12 @@ async function onPickFile() {
   }
 }
 
-function onDownloadWlp() {
-  ElMessage.info('离线包功能将在后续版本实现')
-}
-
-function onDownloadWlk() {
-  ElMessage.info('密钥导出功能将在后续版本实现')
+function formatTime(seconds) {
+  if (seconds === 0) return '永久有效'
+  if (seconds < 60) return `${seconds}秒`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}分钟`
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}小时`
+  return `${Math.round(seconds / 86400)}天`
 }
 
 function formatSize(bytes) {
@@ -131,11 +145,73 @@ function formatSize(bytes) {
   const units = ['B', 'KB', 'MB', 'GB']
   let i = 0
   let size = bytes
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024; i++
-  }
+  while (size >= 1024 && i < units.length - 1) { size /= 1024; i++ }
   return `${size.toFixed(1)} ${units[i]}`
 }
+
+// Start generation when entering step 3
+watch(activeStep, async (step) => {
+  if (step === 2 && !generated.value) {
+    generating.value = true
+    try {
+      const groupId = groupsStore.currentGroup?.id
+      let aesKey = null
+      let signingKey = null
+
+      if (security.aesEncrypt) {
+        aesKey = await generateAesKey()
+      }
+      if (security.ed25519Sign) {
+        signingKey = await generateSigningKeyPair()
+      }
+
+      wlpBytes.value = await buildWlp(selectedFile.value, {
+        groupBound: security.groupBound,
+        groupId: groupId ? Number(groupId) : 0,
+        aesKey,
+        signingKey
+      })
+
+      if (aesKey) {
+        wlkBytes.value = await buildWlk(aesKey, security.ttl)
+      }
+
+      generated.value = true
+    } catch (err) {
+      ElMessage.error('打包失败: ' + (err.message || '未知错误'))
+      activeStep.value = 1 // go back to options
+    } finally {
+      generating.value = false
+    }
+  }
+})
+
+function downloadBytes(bytes, filename) {
+  const blob = new Blob([bytes], { type: 'application/octet-stream' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function onDownloadWlp() {
+  if (!wlpBytes.value) return
+  const name = selectedFile.value?.name || 'file'
+  const base = name.replace(/\.[^.]+$/, '')
+  downloadBytes(wlpBytes.value, `${base}.wlp`)
+  ElMessage.success('离线包已下载')
+}
+
+function onDownloadWlk() {
+  if (!wlkBytes.value) return
+  const name = selectedFile.value?.name || 'file'
+  const base = name.replace(/\.[^.]+$/, '')
+  downloadBytes(wlkBytes.value, `${base}.wlk`)
+  ElMessage.success('密钥文件已下载，请安全保存')
+}
+
 </script>
 
 <style scoped>
@@ -154,7 +230,7 @@ function formatSize(bytes) {
   max-width: 700px;
   margin: 32px auto;
   padding: 32px;
-  background: #fff;
+  background: var(--color-card-bg);
   border-radius: 12px;
 }
 
@@ -163,13 +239,13 @@ function formatSize(bytes) {
 }
 
 .file-select-area {
-  border: 2px dashed #dcdfe6;
+  border: 2px dashed var(--color-border);
   border-radius: 12px;
   padding: 60px 40px;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 
 .file-select-area:hover {
@@ -178,17 +254,17 @@ function formatSize(bytes) {
 
 .selected-file {
   margin-top: 12px;
-  color: #303133;
+  color: var(--color-text);
 }
 
 .file-size {
   font-size: 13px;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 
 .file-hash {
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--color-text-secondary);
   font-family: monospace;
 }
 
@@ -210,6 +286,6 @@ function formatSize(bytes) {
   align-items: center;
   gap: 16px;
   padding: 60px 0;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 </style>

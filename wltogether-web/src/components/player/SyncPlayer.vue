@@ -1,10 +1,11 @@
 <template>
   <div class="sync-player">
     <div ref="playerContainer" class="player-container">
-      <video ref="videoEl" controls />
+      <video ref="videoEl" :src="src" controls />
     </div>
     <div class="player-controls-bar">
       <div class="sync-status">
+        <span class="time-display">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
         <el-tag v-if="clockOffset !== null" :type="syncQuality" size="small">
           同步 {{ Math.abs(clockOffset) }}ms
         </el-tag>
@@ -45,8 +46,22 @@ const emit = defineEmits(['ready', 'timeupdate', 'sync', 'play', 'pause', 'seek'
 const playbackStore = usePlaybackStore()
 const playerContainer = ref(null)
 const videoEl = ref(null)
+const currentTime = ref(0)
+const duration = ref(0)
 let player = null
 let isSeekingFromSync = false
+
+function formatTime(seconds) {
+  if (!seconds || !isFinite(seconds)) return '--:--'
+  const s = Math.floor(seconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  }
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
 
 const syncQuality = computed(() => {
   const offset = Math.abs(props.clockOffset)
@@ -65,10 +80,13 @@ function initPlayer() {
   })
 
   player.on('ready', () => {
+    duration.value = player.duration || 0
     emit('ready', player)
   })
 
   player.on('timeupdate', () => {
+    currentTime.value = player.currentTime
+    if (!duration.value) duration.value = player.duration || 0
     emit('timeupdate', player.currentTime)
   })
 
@@ -128,7 +146,7 @@ watch(() => props.src, (newSrc) => {
       sources: [{ src: newSrc }]
     }
   }
-})
+}, { immediate: true })
 
 onMounted(() => {
   initPlayer()
@@ -166,6 +184,13 @@ defineExpose({ seekTo, player })
   padding: 8px 16px;
   background: #1a1a2e;
   gap: 12px;
+}
+
+.time-display {
+  font-size: 13px;
+  color: #ccc;
+  font-family: monospace;
+  white-space: nowrap;
 }
 
 .sync-status {

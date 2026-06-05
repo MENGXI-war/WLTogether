@@ -39,8 +39,8 @@ defineEmits(['search', 'settings'])
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
+  background: var(--color-card-bg);
+  border-bottom: 1px solid var(--color-border);
   height: 60px;
 }
 
@@ -62,7 +62,7 @@ defineEmits(['search', 'settings'])
 
 .member-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 
 .header-right {

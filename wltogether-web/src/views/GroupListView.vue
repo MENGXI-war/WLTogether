@@ -301,13 +301,15 @@ import { useGroupsStore } from '@/stores/groups'
 import { useAuthStore } from '@/stores/auth'
 import { useLocalFiles } from '@/composables/useLocalFiles'
 import { useAppActions } from '@/composables/useAppActions'
+import { useSessionTransferStore } from '@/stores/sessionTransfer'
 import ChatPanel from '@/components/chat/ChatPanel.vue'
 
 const router = useRouter()
 const route = useRoute()
 const groupsStore = useGroupsStore()
 const authStore = useAuthStore()
-const { pickFiles } = useLocalFiles()
+const { pickFiles, getFileUrl } = useLocalFiles()
+const sessionTransferStore = useSessionTransferStore()
 
 // --- Collapse state ---
 const groupsExpanded = ref(false)
@@ -536,6 +538,13 @@ async function onCreateSession() {
     ElMessage.success('会话已发起')
     showSessionDialog.value = false
     sessionForm.fileName = ''
+    // Pass selected file to session view via store
+    if (selectedFile.value) {
+      const blobUrl = getFileUrl(selectedFile.value)
+      sessionTransferStore.setPendingFile(selectedFile.value, fileHash.value, blobUrl)
+      selectedFile.value = null
+      fileHash.value = ''
+    }
     openSession(session)
   } catch (err) {
     ElMessage.error(err.response?.data?.message || '发起失败')
@@ -748,7 +757,8 @@ onUnmounted(() => groupsStore.clearCurrent())
   padding: 4px 0;
   transition: width 0.2s;
   overflow: hidden;
-  border-right: 1px solid #e4e7ed;
+  border-right: 1px solid var(--color-border);
+  position: relative;
 }
 .groups-sidebar.expanded {
   width: 150px;
@@ -757,23 +767,23 @@ onUnmounted(() => groupsStore.clearCurrent())
 }
 
 .sidebar-toggle {
-  width: 100%;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
   cursor: pointer;
-  color: #909399;
+  color: var(--color-text-secondary);
   opacity: 0.4;
   transition: opacity 0.15s;
   flex-shrink: 0;
+  z-index: 1;
 }
 .sidebar-toggle:hover {
   opacity: 1;
-}
-.groups-sidebar.expanded .sidebar-toggle {
-  justify-content: flex-end;
-  padding-right: 4px;
 }
 
 .groups-list {
@@ -781,6 +791,7 @@ onUnmounted(() => groupsStore.clearCurrent())
   overflow-y: auto;
   width: 100%;
   padding: 4px;
+  padding-top: 28px;
 }
 .groups-sidebar.expanded .groups-list {
   padding: 4px 0;
@@ -835,7 +846,7 @@ onUnmounted(() => groupsStore.clearCurrent())
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #606266;
+  color: var(--color-text);
 }
 
 /* ====== 动态栏 ====== */
@@ -847,9 +858,11 @@ onUnmounted(() => groupsStore.clearCurrent())
   flex-direction: column;
   align-items: center;
   padding: 4px 0;
+  padding-top: 28px;
   gap: 2px;
   overflow-y: auto;
   transition: width 0.2s;
+  position: relative;
 }
 .activity-bar.expanded {
   width: 140px;
@@ -891,14 +904,14 @@ onUnmounted(() => groupsStore.clearCurrent())
   30% { transform: translateY(-4px); opacity: 0.3; }
 }
 
-.typing-suffix { color: #909399; font-style: italic; margin-left: 2px; }
+.typing-suffix { color: var(--color-text-secondary); font-style: italic; margin-left: 2px; }
 
 .announcement-display {
   min-height: 120px;
 }
 .announcement-text {
   white-space: pre-wrap;
-  color: #303133;
+  color: var(--color-text);
   line-height: 1.6;
 }
 
@@ -965,7 +978,7 @@ onUnmounted(() => groupsStore.clearCurrent())
 .section-divider {
   width: 24px;
   height: 1px;
-  background: #dcdfe6;
+  background: var(--color-border);
   margin: 4px 0;
 }
 .activity-bar.expanded .section-divider {
@@ -1023,7 +1036,7 @@ onUnmounted(() => groupsStore.clearCurrent())
   font-weight: 600;
   font-size: 13px;
   padding: 4px 0 8px;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 4px;
 }
 .member-menu .el-button {

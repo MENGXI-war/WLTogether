@@ -34,8 +34,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 2MB
-      max-request-size: 2MB
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 # JWT
 app:
@@ -83,6 +83,11 @@ session:
 # Storage
 storage:
   avatar-dir: ${app.data-dir:./data}/avatars
+  image-dir: ${app.data-dir:./data}/images
+  image-max-size: 10485760
+  max-per-group-mb: 1024
+  message-retention-days: 7
+  temp-dir: ${app.data-dir:./data}/temp
 
 logging:
   level:

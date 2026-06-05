@@ -354,7 +354,7 @@ async function onResetPassword() {
 
 .login-card {
   width: 420px;
-  background: #fff;
+  background: var(--color-card-bg);
   border-radius: 12px;
   padding: 40px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
@@ -382,10 +382,10 @@ async function onResetPassword() {
   text-align: center;
   font-size: 24px;
   font-weight: 700;
-  color: #303133;
+  color: var(--color-text);
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #dcdfe6;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .form-footer {
@@ -394,6 +394,6 @@ async function onResetPassword() {
   align-items: center;
   margin-top: -8px;
   font-size: 13px;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 </style>

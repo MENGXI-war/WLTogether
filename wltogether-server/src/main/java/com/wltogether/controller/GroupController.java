@@ -1,6 +1,7 @@
 package com.wltogether.controller;
 
 import com.wltogether.model.dto.*;
+import com.wltogether.model.dto.JoinRequestResponse;
 import com.wltogether.service.GroupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -167,5 +168,39 @@ public class GroupController {
         Long userId = (Long) auth.getPrincipal();
         groupService.deleteGroupAvatar(id, userId);
         return ResponseEntity.ok(ApiResponse.ok("群头像已删除"));
+    }
+
+    // ========== Join Requests ==========
+
+    @PostMapping("/{id}/join-requests")
+    public ResponseEntity<ApiResponse<Void>> requestJoin(Authentication auth, @PathVariable Long id) {
+        Long userId = (Long) auth.getPrincipal();
+        groupService.requestJoin(id, userId);
+        return ResponseEntity.ok(ApiResponse.ok("已发送加入申请"));
+    }
+
+    @GetMapping("/{id}/join-requests")
+    public ResponseEntity<List<JoinRequestResponse>> listJoinRequests(Authentication auth,
+                                                                       @PathVariable Long id) {
+        Long userId = (Long) auth.getPrincipal();
+        return ResponseEntity.ok(groupService.listJoinRequests(id, userId));
+    }
+
+    @PutMapping("/{id}/join-requests/{requestId}/approve")
+    public ResponseEntity<ApiResponse<Void>> approveJoinRequest(Authentication auth,
+                                                                  @PathVariable Long id,
+                                                                  @PathVariable Long requestId) {
+        Long userId = (Long) auth.getPrincipal();
+        groupService.approveJoinRequest(id, userId, requestId);
+        return ResponseEntity.ok(ApiResponse.ok("已通过申请"));
+    }
+
+    @PutMapping("/{id}/join-requests/{requestId}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectJoinRequest(Authentication auth,
+                                                                 @PathVariable Long id,
+                                                                 @PathVariable Long requestId) {
+        Long userId = (Long) auth.getPrincipal();
+        groupService.rejectJoinRequest(id, userId, requestId);
+        return ResponseEntity.ok(ApiResponse.ok("已拒绝申请"));
     }
 }

@@ -22,7 +22,28 @@
           <span>回复 #{{ message.replyToId }}</span>
         </div>
         <div class="bubble-content">
-          <div class="bubble-text">{{ message.content }}</div>
+          <div v-if="message.messageType === 'IMAGE'" class="bubble-image">
+            <el-image
+              :src="message.imageThumbnailUrl || message.content"
+              :preview-src-list="[message.content]"
+              :preview-teleported="true"
+              fit="contain"
+              class="image-content"
+            >
+              <template #error>
+                <div class="image-error">
+                  <el-icon><Picture /></el-icon>
+                  <span>加载失败</span>
+                </div>
+              </template>
+              <template #placeholder>
+                <div class="image-placeholder">
+                  <el-icon class="is-loading"><Loading /></el-icon>
+                </div>
+              </template>
+            </el-image>
+          </div>
+          <div v-else class="bubble-text">{{ message.content }}</div>
         </div>
         <div class="bubble-meta">
           <span class="bubble-time">{{ formatTime(message.createdAt) }}</span>
@@ -40,6 +61,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Picture, Loading } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps({
@@ -81,7 +103,7 @@ function formatTime(dateStr) {
 }
 
 .chat-bubble.is-own {
-  flex-direction: row-reverse;
+  justify-content: flex-end;
 }
 
 .chat-bubble.is-system {
@@ -90,9 +112,9 @@ function formatTime(dateStr) {
 }
 
 .system-message {
-  color: #909399;
+  color: var(--color-text-secondary);
   font-size: 12px;
-  background: #f0f2f5;
+  background: var(--color-bg);
   padding: 4px 12px;
   border-radius: 4px;
 }
@@ -119,12 +141,12 @@ function formatTime(dateStr) {
 
 .sender-name {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 
 .reply-ref {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -159,11 +181,40 @@ function formatTime(dateStr) {
 
 .bubble-time {
   font-size: 11px;
-  color: #c0c4cc;
+  color: var(--color-text-secondary);
 }
 
 .pinned-icon {
   font-size: 12px;
   color: #e6a23c;
+}
+
+.bubble-image {
+  max-width: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.image-content {
+  width: 100%;
+  max-height: 240px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: block;
+}
+
+.image-error,
+.image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 200px;
+  height: 120px;
+  background: var(--color-bg);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
 }
 </style>

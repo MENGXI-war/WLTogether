@@ -91,6 +91,7 @@ import { VideoCamera, FolderOpened } from '@element-plus/icons-vue'
 import { useGroupsStore } from '@/stores/groups'
 import { useChat } from '@/composables/useChat'
 import { useLocalFiles } from '@/composables/useLocalFiles'
+import { useSessionTransferStore } from '@/stores/sessionTransfer'
 import GroupHeader from '@/components/group/GroupHeader.vue'
 import MemberList from '@/components/group/MemberList.vue'
 import SessionCard from '@/components/group/SessionCard.vue'
@@ -105,7 +106,8 @@ const props = defineProps({
 
 const router = useRouter()
 const groupsStore = useGroupsStore()
-const { pickFiles } = useLocalFiles()
+const { pickFiles, getFileUrl } = useLocalFiles()
+const sessionTransferStore = useSessionTransferStore()
 
 const groupId = computed(() => Number(props.id))
 const group = ref({})
@@ -202,6 +204,13 @@ async function onCreateSession() {
     ElMessage.success('会话已发起')
     showSessionDialog.value = false
     sessionForm.fileName = ''
+    // Pass selected file to session view via store
+    if (selectedFile.value) {
+      const blobUrl = getFileUrl(selectedFile.value)
+      sessionTransferStore.setPendingFile(selectedFile.value, fileHash.value, blobUrl)
+      selectedFile.value = null
+      fileHash.value = ''
+    }
     openSession(session)
   } catch (err) {
     ElMessage.error(err.response?.data?.message || '发起失败')
@@ -245,8 +254,8 @@ onUnmounted(() => groupsStore.clearCurrent())
 .group-sidebar {
   width: 300px;
   flex-shrink: 0;
-  border-left: 1px solid #e4e7ed;
-  background: #fff;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-card-bg);
   overflow-y: auto;
   padding: 12px;
 }
@@ -258,7 +267,7 @@ onUnmounted(() => groupsStore.clearCurrent())
 .section-title {
   font-size: 13px;
   font-weight: 500;
-  color: #909399;
+  color: var(--color-text-secondary);
   margin-bottom: 8px;
   padding: 0 4px;
 }
