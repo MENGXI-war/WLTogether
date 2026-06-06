@@ -13,3 +13,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
+
+# Dev default admin — change in production via ADMIN_INIT_PASSWORD env var
+app:
+  admin:
+    init-password: ${ADMIN_INIT_PASSWORD:admin123}
+  logs:
+    dir: ./logs

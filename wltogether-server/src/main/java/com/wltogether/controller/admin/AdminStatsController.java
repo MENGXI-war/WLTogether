@@ -1,7 +1,9 @@
 package com.wltogether.controller.admin;
 
 import com.wltogether.model.dto.ApiResponse;
+import com.wltogether.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +19,11 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 public class AdminStatsController {
+
+    private final UserRepository userRepository;
+    private final GroupRepository groupRepository;
+    private final SessionRepository sessionRepository;
+    private final ChatMessageRepository chatMessageRepository;
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
@@ -43,6 +50,15 @@ public class AdminStatsController {
         stats.put("jvm", Map.of(
                 "uptimeSeconds", ManagementFactory.getRuntimeMXBean().getUptime() / 1000,
                 "threadCount", ManagementFactory.getThreadMXBean().getThreadCount()
+        ));
+
+        // Database counts
+        stats.put("counts", Map.of(
+                "totalUsers", userRepository.count(),
+                "activeUsers", userRepository.findByStatus("ACTIVE", Pageable.unpaged()).getTotalElements(),
+                "totalGroups", groupRepository.count(),
+                "activeSessions", sessionRepository.findByStatus("CREATED").size(),
+                "totalMessages", chatMessageRepository.count()
         ));
 
         return ResponseEntity.ok(ApiResponse.ok("ok", stats));

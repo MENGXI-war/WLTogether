@@ -38,6 +38,18 @@ public class WallpaperService {
     }
 
     @Transactional
+    public Wallpaper update(Long id, String imageUrl, String title, String description,
+                             LocalDate publishDate) {
+        Wallpaper wp = wallpaperRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("壁纸不存在"));
+        if (imageUrl != null) wp.setImageUrl(imageUrl);
+        if (title != null) wp.setTitle(title);
+        if (description != null) wp.setDescription(description);
+        if (publishDate != null) wp.setPublishDate(publishDate);
+        return wallpaperRepository.save(wp);
+    }
+
+    @Transactional
     public void delete(Long id) {
         wallpaperRepository.deleteById(id);
     }

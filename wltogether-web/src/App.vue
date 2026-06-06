@@ -24,6 +24,7 @@ const { connect, disconnect } = useWebSocket()
 const showHeader = computed(() => {
   const name = route.name
   return name !== 'Login' && name !== 'Landing' && name !== 'Docs'
+    && !route.path.startsWith('/admin')
 })
 
 onMounted(async () => {

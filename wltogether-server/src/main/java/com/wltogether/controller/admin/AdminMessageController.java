@@ -21,7 +21,16 @@ public class AdminMessageController {
     public ResponseEntity<Page<ChatMessage>> list(Pageable pageable,
                                                    @RequestParam(required = false) Long groupId,
                                                    @RequestParam(required = false) Long senderId) {
-        // For simplicity, return all messages with pagination
+        if (groupId != null && senderId != null) {
+            return ResponseEntity.ok(chatMessageRepository
+                    .findByGroupIdAndSenderIdOrderByCreatedAtDesc(groupId, senderId, pageable));
+        } else if (groupId != null) {
+            return ResponseEntity.ok(chatMessageRepository
+                    .findByGroupIdPage(groupId, pageable));
+        } else if (senderId != null) {
+            return ResponseEntity.ok(chatMessageRepository
+                    .findBySenderIdOrderByCreatedAtDesc(senderId, pageable));
+        }
         return ResponseEntity.ok(chatMessageRepository.findAll(pageable));
     }
 

@@ -1,8 +1,10 @@
 package com.wltogether.controller.admin;
 
 import com.wltogether.model.dto.ApiResponse;
+import com.wltogether.model.dto.WallpaperRequest;
 import com.wltogether.model.entity.Wallpaper;
 import com.wltogether.service.WallpaperService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/wallpapers")
@@ -27,17 +28,26 @@ public class AdminWallpaperController {
 
     @PostMapping
     public ResponseEntity<Wallpaper> create(Authentication auth,
-                                             @RequestBody Map<String, Object> body) {
+                                             @Valid @RequestBody WallpaperRequest body) {
         Long userId = (Long) auth.getPrincipal();
-        String imageUrl = (String) body.get("imageUrl");
-        String title = (String) body.get("title");
-        String description = (String) body.get("description");
-        LocalDate publishDate = body.get("publishDate") != null
-                ? LocalDate.parse((String) body.get("publishDate"))
+        LocalDate publishDate = body.getPublishDate() != null
+                ? LocalDate.parse(body.getPublishDate())
                 : LocalDate.now();
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(wallpaperService.create(imageUrl, title, description, publishDate, userId));
+                .body(wallpaperService.create(body.getImageUrl(), body.getTitle(),
+                        body.getDescription(), publishDate, userId));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Wallpaper> update(@PathVariable Long id,
+                                             @RequestBody WallpaperRequest body) {
+        LocalDate publishDate = body.getPublishDate() != null
+                ? LocalDate.parse(body.getPublishDate())
+                : null;
+
+        return ResponseEntity.ok(wallpaperService.update(id, body.getImageUrl(), body.getTitle(),
+                body.getDescription(), publishDate));
     }
 
     @DeleteMapping("/{id}")

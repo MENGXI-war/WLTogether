@@ -1,15 +1,15 @@
 package com.wltogether.controller.admin;
 
 import com.wltogether.model.dto.ApiResponse;
+import com.wltogether.model.dto.ErrorUpdateRequest;
 import com.wltogether.model.entity.ErrorLog;
 import com.wltogether.service.ErrorLogService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/errors")
@@ -27,9 +27,7 @@ public class AdminErrorController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ErrorLog> update(@PathVariable Long id,
-                                            @RequestBody Map<String, Object> body) {
-        String status = (String) body.get("status");
-        String resolutionNote = (String) body.get("resolutionNote");
-        return ResponseEntity.ok(errorLogService.updateStatus(id, status, resolutionNote));
+                                            @Valid @RequestBody ErrorUpdateRequest body) {
+        return ResponseEntity.ok(errorLogService.updateStatus(id, body.getStatus(), body.getResolutionNote()));
     }
 }

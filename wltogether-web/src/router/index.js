@@ -68,6 +68,81 @@ const routes = [
     component: () => import('@/views/SettingsView.vue'),
     meta: { requiresAuth: true }
   },
+  // ========== Admin Routes ==========
+  {
+    path: '/admin',
+    component: () => import('@/views/admin/AdminLayout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      { path: '', redirect: '/admin/dashboard' },
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: () => import('@/views/admin/DashboardView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/UsersView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'groups',
+        name: 'AdminGroups',
+        component: () => import('@/views/admin/GroupsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'sessions',
+        name: 'AdminSessions',
+        component: () => import('@/views/admin/SessionsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'messages',
+        name: 'AdminMessages',
+        component: () => import('@/views/admin/MessagesView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'files',
+        name: 'AdminFiles',
+        component: () => import('@/views/admin/FilesView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'announcements',
+        name: 'AdminAnnouncements',
+        component: () => import('@/views/admin/AnnouncementsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'wallpapers',
+        name: 'AdminWallpapers',
+        component: () => import('@/views/admin/WallpapersView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'errors',
+        name: 'AdminErrors',
+        component: () => import('@/views/admin/ErrorsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'settings',
+        name: 'AdminSettings',
+        component: () => import('@/views/admin/SettingsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'logs',
+        name: 'AdminLogs',
+        component: () => import('@/views/admin/LogsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+      }
+    ]
+  },
   {
     path: '/:pathMatch(.*)*',
     redirect: '/'
@@ -79,7 +154,6 @@ const router = createRouter({
   routes
 })
 
-// Navigation guard
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
 
@@ -87,6 +161,12 @@ router.beforeEach((to, from, next) => {
     next({ name: 'Login', query: { redirect: to.fullPath } })
   } else if (to.meta.guest && authStore.isAuthenticated) {
     next({ name: 'GroupList' })
+  } else if (to.meta.requiresAdmin) {
+    if (!authStore.user || authStore.user.role !== 'ADMIN') {
+      next({ name: 'GroupList' })
+    } else {
+      next()
+    }
   } else {
     next()
   }

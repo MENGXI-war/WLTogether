@@ -29,6 +29,10 @@
         <el-button :icon="Plus" circle @click="onCreateGroup" class="icon-btn" />
       </el-tooltip>
 
+      <el-tooltip v-if="authStore.user?.role === 'ADMIN'" content="管理后台" placement="bottom">
+        <el-button :icon="Monitor" circle @click="router.push('/admin')" class="icon-btn admin-btn" />
+      </el-tooltip>
+
       <el-divider direction="vertical" />
 
       <el-tooltip content="设置" placement="bottom">
@@ -56,7 +60,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { HomeFilled, Plus, Setting, SwitchButton, Sunny, Moon, Box, QuestionFilled } from '@element-plus/icons-vue'
+import { HomeFilled, Plus, Setting, SwitchButton, Sunny, Moon, Box, QuestionFilled, Monitor } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { useAppActions } from '@/composables/useAppActions'
@@ -146,6 +150,10 @@ function onCommand(cmd) {
 
 .icon-btn:hover {
   transform: scale(1.1);
+}
+
+.admin-btn {
+  color: #e6a23c;
 }
 
 .btn-separator {

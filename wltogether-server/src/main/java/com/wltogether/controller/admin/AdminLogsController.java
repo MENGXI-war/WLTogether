@@ -7,58 +7,77 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/logs")
 public class AdminLogsController {
 
-    @Value("${logging.file.path:./logs}")
-    private String logPath;
+    @Value("${app.logs.dir:./logs}")
+    private String logsDir;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<String>>> list(
-            @RequestParam(defaultValue = "100") int lines,
-            @RequestParam(defaultValue = "INFO") String level) {
-        List<String> result = new ArrayList<>();
-        Path logFile = Paths.get(logPath, "wltogether.log");
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list() {
+        Path dir = Paths.get(logsDir);
+        List<Map<String, Object>> files = new ArrayList<>();
 
-        if (!Files.exists(logFile)) {
-            // Try spring default log file
-            logFile = Paths.get("logs", "spring.log");
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+            return ResponseEntity.ok(ApiResponse.ok("ok", files));
         }
 
-        if (!Files.exists(logFile)) {
-            return ResponseEntity.ok(ApiResponse.ok("暂无日志文件", result));
-        }
-
-        try (Stream<String> stream = Files.lines(logFile)) {
-            stream
-                    .filter(line -> matchesLevel(line, level))
-                    .skip(Math.max(0, countLines(logFile) - lines))
-                    .forEach(result::add);
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.log*")) {
+            for (Path path : stream) {
+                Map<String, Object> info = new LinkedHashMap<>();
+                info.put("name", path.getFileName().toString());
+                info.put("size", path.toFile().length());
+                info.put("lastModified", path.toFile().lastModified());
+                files.add(info);
+            }
         } catch (IOException e) {
-            log.warn("Failed to read log file: {}", e.getMessage());
-            result.add("日志文件读取失败: " + e.getMessage());
+            log.error("Failed to list log files", e);
+            throw new IllegalArgumentException("无法读取日志目录");
         }
 
-        return ResponseEntity.ok(ApiResponse.ok("ok", result));
+        files.sort((a, b) -> Long.compare(
+                (Long) b.get("lastModified"), (Long) a.get("lastModified")));
+        return ResponseEntity.ok(ApiResponse.ok("ok", files));
     }
 
-    private boolean matchesLevel(String line, String level) {
-        if ("ALL".equalsIgnoreCase(level)) return true;
-        return line.contains(" " + level.toUpperCase() + " ");
-    }
+    @GetMapping("/{filename}")
+    public ResponseEntity<ApiResponse<String>> read(@PathVariable String filename,
+                                                     @RequestParam(defaultValue = "200") int lines) {
+        // Security: prevent path traversal
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
+            throw new IllegalArgumentException("无效的文件名");
+        }
+        if (!filename.endsWith(".log") && !filename.contains(".log.")) {
+            throw new IllegalArgumentException("仅支持读取 .log 文件");
+        }
+        if (lines < 1 || lines > 2000) {
+            lines = Math.clamp(lines, 1, 2000);
+        }
 
-    private long countLines(Path path) throws IOException {
-        try (Stream<String> lines = Files.lines(path)) {
-            return lines.count();
+        Path filePath = Paths.get(logsDir).resolve(filename).normalize();
+        if (!filePath.startsWith(Paths.get(logsDir).normalize())) {
+            throw new IllegalArgumentException("无效的文件路径");
+        }
+        if (!Files.exists(filePath)) {
+            throw new IllegalArgumentException("日志文件不存在: " + filename);
+        }
+
+        try {
+            List<String> allLines = Files.readAllLines(filePath);
+            int from = Math.max(0, allLines.size() - lines);
+            List<String> tail = allLines.subList(from, allLines.size());
+            return ResponseEntity.ok(ApiResponse.ok("ok", String.join("\n", tail)));
+        } catch (IOException e) {
+            log.error("Failed to read log file: {}", filename, e);
+            throw new IllegalArgumentException("无法读取日志文件");
         }
     }
 }

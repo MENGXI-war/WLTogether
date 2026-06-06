@@ -1,5 +1,7 @@
 package com.wltogether.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
@@ -21,6 +23,7 @@ public class User {
     private String username;
 
     @Column(name = "password_hash", nullable = false, length = 255)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String passwordHash;
 
     @Column(length = 100)
@@ -45,6 +48,7 @@ public class User {
     private String uid;
 
     @Column(name = "public_key", columnDefinition = "TEXT")
+    @JsonIgnore
     private String publicKey;
 
     @Column(name = "created_at", nullable = false, updatable = false)

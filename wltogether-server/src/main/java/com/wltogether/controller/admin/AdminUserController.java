@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
@@ -20,17 +22,26 @@ public class AdminUserController {
     @GetMapping
     public ResponseEntity<Page<User>> list(Pageable pageable,
                                             @RequestParam(required = false) String status) {
-        // Simplified: use findAll with filtering
-        // For production, use specification or custom query
+        if (status != null && !status.isBlank()) {
+            return ResponseEntity.ok(userRepository.findByStatus(status, pageable));
+        }
         return ResponseEntity.ok(userRepository.findAll(pageable));
     }
 
-    @PutMapping("/{id}/disable")
+    @PutMapping("/{id}/status")
     @Transactional
-    public ResponseEntity<ApiResponse<Void>> disable(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> toggleStatus(@PathVariable Long id,
+                                                           @RequestBody Map<String, String> body) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
-        user.setStatus("DISABLED".equals(user.getStatus()) ? "ACTIVE" : "DISABLED");
+        String newStatus = body.get("status");
+        if (newStatus == null || (!"ACTIVE".equals(newStatus) && !"DISABLED".equals(newStatus))) {
+            throw new IllegalArgumentException("状态值无效，仅支持 ACTIVE 或 DISABLED");
+        }
+        if ("ADMIN".equals(user.getRole())) {
+            throw new IllegalArgumentException("不能修改管理员状态");
+        }
+        user.setStatus(newStatus);
         userRepository.save(user);
         return ResponseEntity.ok(ApiResponse.ok("用户状态已更新"));
     }
